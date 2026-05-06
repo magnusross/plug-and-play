@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 const path = require('path');
-const open = require('open');
+const openModule = require('open');
+const open = openModule.default || openModule;
 
 // Start the server
 require('../server/index.js');
