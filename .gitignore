@@ -1,0 +1,6 @@
+node_modules/
+.DS_Store
+export.pdb
+ui/node_modules/
+ui/dist/
+scratch.js

@@ -1,0 +1,24 @@
+{
+  "name": "plug-and-play",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server/index.js",
+  "bin": {
+    "plug-and-play": "./bin/plug-and-play.js"
+  },
+  "scripts": {
+    "start": "node bin/plug-and-play.js",
+    "dev": "node server/index.js & cd ui && npm run dev",
+    "ui:build": "cd ui && npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "open": "^11.0.0",
+    "rekordbox-parser": "^0.1.2"
+  }
+}
