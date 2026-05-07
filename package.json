@@ -9,7 +9,8 @@
   "scripts": {
     "start": "node bin/plug-and-play.js",
     "dev": "node server/index.js & cd ui && npm run dev",
-    "ui:build": "cd ui && npm run build"
+    "ui:build": "cd ui && npm run build",
+    "postinstall": "npm --prefix ui install && npm --prefix ui run build"
   },
   "keywords": [],
   "author": "",
