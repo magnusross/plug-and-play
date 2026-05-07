@@ -266,6 +266,37 @@ audio {
   max-width: 220px;
 }
 
+.index-banner {
+  border: 1px solid #000;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.95rem;
+}
+
+.index-banner.running {
+  background: #fafafa;
+}
+
+.index-banner > div {
+  flex: 1;
+  min-width: 200px;
+}
+
+.index-banner button {
+  height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.score-mode {
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+
 .scatter-empty {
   position: absolute;
   top: 50%;

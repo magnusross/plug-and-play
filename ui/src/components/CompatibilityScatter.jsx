@@ -28,9 +28,10 @@ function position(track, score) {
 function CompatibilityScatter({ active, compatible, nextTrack, onPickNext }) {
   const [hover, setHover] = useState(null);
 
-  const points = compatible.map(({ track, score }) => ({
+  const points = compatible.map(({ track, score, distance }) => ({
     track,
     score,
+    distance,
     ...position(track, score),
   }));
 
@@ -106,6 +107,9 @@ function CompatibilityScatter({ active, compatible, nextTrack, onPickNext }) {
             {hover.track.bpm ? `${hover.track.bpm.toFixed(1)} BPM` : 'no BPM'}
             {' · '}
             {keyToCamelot(hover.track.key) || hover.track.key || 'no key'}
+          </div>
+          <div className="muted">
+            distance: {Number.isFinite(hover.distance) ? hover.distance.toFixed(4) : '—'}
           </div>
         </div>
       )}

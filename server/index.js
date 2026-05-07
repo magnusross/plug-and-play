@@ -3,9 +3,12 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const { parsePdb, tableRows, RekordboxPdb } = require('rekordbox-parser');
+const indexer = require('./embeddings/indexer.js');
+const { packForClient } = require('./embeddings/cache.js');
 
 const app = express();
 app.use(cors());
+app.use(express.json());
 
 function extractStr(obj) {
   if (!obj) return '';
@@ -144,6 +147,15 @@ if (usbInfo) {
   }
 }
 
+if (usbInfo) {
+  try {
+    const primed = indexer.primeCacheFromDisk(usbInfo.volumePath);
+    if (primed.size > 0) console.log(`Primed ${primed.size} cached embeddings from disk.`);
+  } catch (e) {
+    console.warn('Could not prime embedding cache:', e.message);
+  }
+}
+
 // Fallback mock data if no DB found
 if (tracks.length === 0) {
   console.warn('No Rekordbox USB or local export.pdb found. Providing mock tracks.');
@@ -160,6 +172,34 @@ app.get('/api/tracks', (req, res) => {
 
 app.get('/api/playlists', (req, res) => {
   res.json({ playlists });
+});
+
+app.get('/api/embeddings/status', (req, res) => {
+  res.json(indexer.getStatus());
+});
+
+app.post('/api/embeddings/start', (req, res) => {
+  if (!usbInfo) return res.status(404).json({ error: 'no USB / DB' });
+  const status = indexer.getStatus();
+  if (status.running) return res.json({ ok: true, alreadyRunning: true });
+  // Fire and forget; client polls /status.
+  indexer.indexAll(tracks, usbInfo.volumePath).catch(err => {
+    console.error('[indexer] error:', err);
+  });
+  res.json({ ok: true });
+});
+
+app.post('/api/embeddings/cancel', (req, res) => {
+  indexer.cancel();
+  res.json({ ok: true });
+});
+
+// Binary endpoint: returns packed [dim:u32, count:u32, [trackId:u32, dim*f32]...]
+app.get('/api/embeddings', (req, res) => {
+  const cache = indexer.getCache();
+  const buf = packForClient(cache);
+  res.set('Content-Type', 'application/octet-stream');
+  res.send(buf);
 });
 
 app.get('/api/audio', (req, res) => {
