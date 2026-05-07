@@ -51,6 +51,7 @@ if (usbInfo) {
     if (pdb.tables) {
       const tracksTable = pdb.tables.find(t => t.type === RekordboxPdb.PageType.TRACKS || t.type === 0);
       const artistsTable = pdb.tables.find(t => t.type === RekordboxPdb.PageType.ARTISTS || t.type === 3);
+      const keysTable = pdb.tables.find(t => t.type === RekordboxPdb.PageType.KEYS || t.type === 5);
       const playlistTreeTable = pdb.tables.find(t => t.type === RekordboxPdb.PageType.PLAYLIST_TREE || t.type === 7);
       const playlistEntriesTable = pdb.tables.find(t => t.type === RekordboxPdb.PageType.PLAYLIST_ENTRIES || t.type === 8);
 
@@ -61,14 +62,27 @@ if (usbInfo) {
         }
       }
 
+      const keysMap = {};
+      if (keysTable) {
+        for (const key of tableRows(keysTable)) {
+          keysMap[key.id] = extractStr(key.name);
+        }
+      }
+
       if (tracksTable) {
-        tracks = Array.from(tableRows(tracksTable)).map(r => ({
-          id: r.id,
-          title: extractStr(r.title) || 'Unknown Title',
-          artist: artistsMap[r.artistId] || 'Unknown Artist',
-          dateAdded: extractStr(r.dateAdded),
-          filePath: extractStr(r.filePath)
-        }));
+        tracks = Array.from(tableRows(tracksTable)).map(r => {
+          const bpm = r.tempo ? r.tempo / 100 : null;
+          return {
+            id: r.id,
+            title: extractStr(r.title) || 'Unknown Title',
+            artist: artistsMap[r.artistId] || 'Unknown Artist',
+            dateAdded: extractStr(r.dateAdded),
+            filePath: extractStr(r.filePath),
+            bpm: bpm && bpm > 0 ? bpm : null,
+            keyId: r.keyId || null,
+            key: keysMap[r.keyId] || null
+          };
+        });
         console.log(`Loaded ${tracks.length} tracks from real USB.`);
       } else {
         console.warn('Tracks table not found in PDB.');
