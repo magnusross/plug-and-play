@@ -1,51 +1,73 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import './index.css';
 
 function App() {
   const [tracks, setTracks] = useState([]);
+  const [playlists, setPlaylists] = useState([]);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState('');
   const [filteredTracks, setFilteredTracks] = useState([]);
-  const [mode, setMode] = useState('recent'); // 'recent', 'shuffle', 'search'
+  const [mode, setMode] = useState('order'); // 'order', 'recent', 'shuffle'
   const [searchQuery, setSearchQuery] = useState('');
   const [currentTrack, setCurrentTrack] = useState(null);
-  
+
   const audioRef = useRef(null);
 
   useEffect(() => {
     fetch('http://localhost:4000/api/tracks')
       .then(res => res.json())
       .then(data => {
-        if (data.tracks) {
-          setTracks(data.tracks);
-        }
+        if (data.tracks) setTracks(data.tracks);
+      })
+      .catch(err => console.error(err));
+
+    fetch('http://localhost:4000/api/playlists')
+      .then(res => res.json())
+      .then(data => {
+        if (data.playlists) setPlaylists(data.playlists);
       })
       .catch(err => console.error(err));
   }, []);
 
+  const selectedPlaylist = useMemo(
+    () => playlists.find(p => String(p.id) === String(selectedPlaylistId)) || null,
+    [playlists, selectedPlaylistId]
+  );
+
   useEffect(() => {
-    let sorted = [...tracks];
-    
+    let result;
+
+    if (selectedPlaylist) {
+      const trackById = new Map(tracks.map(t => [t.id, t]));
+      result = selectedPlaylist.trackIds
+        .map(id => trackById.get(id))
+        .filter(Boolean);
+    } else {
+      result = [...tracks];
+    }
+
     if (mode === 'recent') {
-      sorted.sort((a, b) => {
+      result.sort((a, b) => {
         const dateA = a.dateAdded ? new Date(a.dateAdded).getTime() : 0;
         const dateB = b.dateAdded ? new Date(b.dateAdded).getTime() : 0;
         return (dateB || 0) - (dateA || 0);
       });
     } else if (mode === 'shuffle') {
-      for (let i = sorted.length - 1; i > 0; i--) {
+      for (let i = result.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [sorted[i], sorted[j]] = [sorted[j], sorted[i]];
+        [result[i], result[j]] = [result[j], result[i]];
       }
     }
-    
+    // mode === 'order': leave in playlist order (already in trackIds order)
+
     if (searchQuery) {
-      sorted = sorted.filter(t => 
+      result = result.filter(t =>
         (t.title && t.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (t.artist && t.artist.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
-    
-    setFilteredTracks(sorted);
-  }, [tracks, mode, searchQuery]);
+
+    setFilteredTracks(result);
+  }, [tracks, selectedPlaylist, mode, searchQuery]);
 
   const handlePlay = (track) => {
     setCurrentTrack(track);
@@ -93,24 +115,41 @@ function App() {
   return (
     <>
       <h1>plug-and-play</h1>
-      
+
       <div className="controls">
-        <button 
-          className={mode === 'recent' ? 'active' : ''} 
+        <button
+          className={mode === 'order' ? 'active' : ''}
+          onClick={() => setMode('order')}
+        >
+          Order
+        </button>
+        <button
+          className={mode === 'recent' ? 'active' : ''}
           onClick={() => setMode('recent')}
         >
-          [Recent]
+          Recent
         </button>
-        <button 
-          className={mode === 'shuffle' ? 'active' : ''} 
+        <button
+          className={mode === 'shuffle' ? 'active' : ''}
           onClick={() => setMode('shuffle')}
         >
-          [Shuffle]
+          Shuffle
         </button>
-        
-        <input 
-          type="text" 
-          placeholder="Search tracks..." 
+
+        <select
+          className="playlist-select"
+          value={selectedPlaylistId}
+          onChange={(e) => setSelectedPlaylistId(e.target.value)}
+        >
+          <option value="">[All Tracks]</option>
+          {playlists.map(p => (
+            <option key={p.id} value={p.id}>{p.path}</option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          placeholder="Search tracks..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="search-input"
@@ -120,8 +159,8 @@ function App() {
       <ul className="track-list">
         {filteredTracks.length === 0 ? <li>No tracks loaded.</li> : null}
         {filteredTracks.map(track => (
-          <li 
-            key={track.id} 
+          <li
+            key={track.id}
             className={`track-item ${currentTrack?.id === track.id ? 'playing' : ''}`}
             onClick={() => handlePlay(track)}
           >
@@ -140,10 +179,10 @@ function App() {
             <button className="player-btn" onClick={handlePrev}>⏮</button>
             <button className="player-btn" onClick={handleNext}>⏭</button>
           </div>
-          <audio 
-            ref={audioRef} 
-            controls 
-            autoPlay 
+          <audio
+            ref={audioRef}
+            controls
+            autoPlay
             onEnded={handleEnded}
           />
         </div>

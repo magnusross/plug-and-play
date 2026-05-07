@@ -41,6 +41,7 @@ function findRekordboxDb() {
 
 const usbInfo = findRekordboxDb();
 let tracks = [];
+let playlists = [];
 
 if (usbInfo) {
   console.log(`Found Rekordbox DB at: ${usbInfo.dbPath}`);
@@ -50,6 +51,8 @@ if (usbInfo) {
     if (pdb.tables) {
       const tracksTable = pdb.tables.find(t => t.type === RekordboxPdb.PageType.TRACKS || t.type === 0);
       const artistsTable = pdb.tables.find(t => t.type === RekordboxPdb.PageType.ARTISTS || t.type === 3);
+      const playlistTreeTable = pdb.tables.find(t => t.type === RekordboxPdb.PageType.PLAYLIST_TREE || t.type === 7);
+      const playlistEntriesTable = pdb.tables.find(t => t.type === RekordboxPdb.PageType.PLAYLIST_ENTRIES || t.type === 8);
 
       const artistsMap = {};
       if (artistsTable) {
@@ -70,6 +73,57 @@ if (usbInfo) {
       } else {
         console.warn('Tracks table not found in PDB.');
       }
+
+      if (playlistTreeTable) {
+        const nodes = {};
+        for (const row of tableRows(playlistTreeTable)) {
+          nodes[row.id] = {
+            id: row.id,
+            parentId: row.parentId,
+            sortOrder: row.sortOrder,
+            isFolder: !!row.isFolder,
+            name: extractStr(row.name) || 'Unnamed',
+            trackIds: []
+          };
+        }
+
+        if (playlistEntriesTable) {
+          const entries = Array.from(tableRows(playlistEntriesTable));
+          entries.sort((a, b) => a.entryIndex - b.entryIndex);
+          for (const entry of entries) {
+            const node = nodes[entry.playlistId];
+            if (node) node.trackIds.push(entry.trackId);
+          }
+        }
+
+        const folderPath = (node) => {
+          const parts = [];
+          let cur = node;
+          const seen = new Set();
+          while (cur && cur.parentId && nodes[cur.parentId] && !seen.has(cur.id)) {
+            seen.add(cur.id);
+            const parent = nodes[cur.parentId];
+            parts.unshift(parent.name);
+            cur = parent;
+          }
+          return parts.join(' / ');
+        };
+
+        playlists = Object.values(nodes)
+          .filter(n => !n.isFolder)
+          .map(n => {
+            const parentPath = folderPath(n);
+            return {
+              id: n.id,
+              name: n.name,
+              path: parentPath ? `${parentPath} / ${n.name}` : n.name,
+              trackIds: n.trackIds
+            };
+          })
+          .sort((a, b) => a.path.localeCompare(b.path));
+
+        console.log(`Loaded ${playlists.length} playlists.`);
+      }
     }
   } catch (e) {
     console.error('Error parsing DB:', e);
@@ -88,6 +142,10 @@ if (tracks.length === 0) {
 
 app.get('/api/tracks', (req, res) => {
   res.json({ tracks });
+});
+
+app.get('/api/playlists', (req, res) => {
+  res.json({ playlists });
 });
 
 app.get('/api/audio', (req, res) => {
